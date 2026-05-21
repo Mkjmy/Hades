@@ -1,8 +1,4 @@
-; ==============================================================================
-; PROJECT: HADES - GLITCH EDITION (The Visual Nightmare)
-; ARCHITECTURE: x86_64 Linux
-; WARNING: NO SLEEP. NO LIMITS. TOTAL SCREEN CORRUPTION.
-; ==============================================================================
+
 
 section .data
     ; ANSI Escape Sequences

